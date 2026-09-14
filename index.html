@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cotizador Biei</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+  :root{
+    --app-bg:#121116;
+    --panel-bg:#1b1a20;
+    --panel-bg-2:#232128;
+    --panel-border:#312e38;
+    --doc-bg:#1a1920;
+    --doc-bg-2:#211f27;
+    --text-hi:#f7f4ef;
+    --text-body:#d7d3cd;
+    --text-dim:#8f8a93;
+    --accent:#e5a83f;
+    --accent-ink:#241804;
+    --line:#35323d;
+    --input-bg:#151419;
+    --danger:#d9765a;
+    --status-open:#e5a83f;
+    --status-won:#7fae6f;
+    --status-lost:#8f8a93;
+  }
+
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{background:var(--app-bg);}
+  body{
+    margin:0;
+    padding-inline:20px;
+    padding-block:28px;
+    font-family:'Manrope',system-ui,sans-serif;
+    color:var(--text-body);
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  h1,h2,h3{font-family:'Baloo 2',system-ui,sans-serif; text-wrap:balance; margin:0;}
+  .tabular{font-variant-numeric:tabular-nums;}
+  img{max-width:100%;}
+  [hidden]{display:none !important;}
+
+  .app{
+    max-width:1180px;
+    margin-inline:auto;
+    display:grid;
+    grid-template-columns:380px 1fr;
+    gap:28px;
+    align-items:start;
+  }
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr;}
+  }
+
+  .app-title{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:20px;
+    color:var(--text-hi);
+  }
+  .app-title span{
+    font-family:'Manrope',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    color:var(--text-dim);
+    letter-spacing:.04em;
+  }
+  .app-title h1{font-size:22px;}
+
+  .avail{
+    max-width:1180px; margin:0 auto 24px; background:var(--panel-bg);
+    border:1px solid var(--panel-border); border-radius:14px; padding:18px 20px;
+  }
+  .avail h2{font-size:15px; color:var(--text-hi); margin-bottom:4px;}
+  .avail .updated{font-size:11px; color:var(--text-dim); margin-bottom:14px;}
+  .avail-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px;}
+  @media (max-width:800px){ .avail-grid{grid-template-columns:1fr 1fr;} }
+  @media (max-width:460px){ .avail-grid{grid-template-columns:1fr;} }
+  .avail-col h3{font-size:13px; color:var(--text-hi); margin-bottom:8px;}
+  .avail-col ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+  .avail-col li{font-size:12px; color:var(--text-dim); display:flex; justify-content:space-between; gap:8px;}
+  .avail-col li b{color:var(--text-body); font-weight:600;}
+  .avail-empty{font-size:12px; color:var(--text-dim); font-style:italic;}
+
+  /* ---------- FORM PANEL ---------- */
+  .panel{
+    background:var(--panel-bg);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    padding:22px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+  }
+  input[type=text],input[type=number],input[type=date],select{
+    background:var(--input-bg);
+    border:1px solid var(--panel-border);
+    color:var(--text-hi);
+    border-radius:8px;
+    padding:9px 10px;
+    font:inherit;
+    font-size:14px;
+    width:100%;
+  }
+  input:focus,select:focus{outline:2px solid var(--accent); outline-offset:1px;}
+
+  .section-label{
+    font-size:13px;
+    font-weight:800;
+    color:var(--text-hi);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:4px;
+  }
+
+  .line-item{
+    background:var(--panel-bg-2);
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    position:relative;
+  }
+  .line-item .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .line-item .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  .line-item .dias-readout{
+    background:var(--input-bg); border:1px solid var(--panel-border); border-radius:8px;
+    padding:9px 10px; font-size:14px; color:var(--text-hi); display:flex; align-items:center;
+  }
+  .line-item .checkrow{
+    display:flex; align-items:center; gap:8px;
+    font-size:13px; color:var(--text-body);
+  }
+  .line-item .checkrow input{width:auto;}
+  .remove-line{
+    background:none; border:none; color:var(--danger);
+    font-size:12px; font-weight:700; cursor:pointer; padding:2px;
+    align-self:flex-end;
+  }
+  .add-line{
+    background:var(--panel-bg-2);
+    border:1px dashed var(--panel-border);
+    color:var(--accent);
+    border-radius:10px;
+    padding:10px;
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .add-line:hover{border-color:var(--accent);}
+
+  .actions{display:flex; flex-direction:column; gap:8px; margin-top:6px;}
+  button.primary,button.secondary{
+    font:inherit; font-weight:800; font-size:14px;
+    border-radius:9px; padding:11px 14px; cursor:pointer; border:1px solid transparent;
+  }
+  button.primary{background:var(--accent); color:var(--accent-ink);}
+  button.primary:hover{filter:brightness(1.06);}
+  button.primary:disabled{opacity:.6; cursor:default;}
+  button.secondary{background:transparent; border-color:var(--panel-border); color:var(--text-hi);}
+  button.secondary:hover{border-color:var(--accent); color:var(--accent);}
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translate(-50%,10px);
+    background:var(--accent); color:var(--accent-ink); font-weight:700; font-size:13px;
+    padding:9px 16px; border-radius:999px; opacity:0; transition:opacity .2s, transform .2s;
+    pointer-events:none; z-index:50;
+  }
+  .toast.show{opacity:1; transform:translate(-50%,0);}
+
+  /* ---------- DOCUMENT PREVIEW ---------- */
+  .doc-wrap{display:flex; justify-content:center;}
+  .doc{
+    background:var(--doc-bg);
+    border:1px solid var(--panel-border);
+    border-radius:16px;
+    padding:34px 30px 26px;
+    width:100%;
+    max-width:600px;
+    box-shadow:0 20px 60px -20px rgba(0,0,0,.6);
+  }
+  .doc-head{
+    display:flex; align-items:center; gap:14px; margin-bottom:22px;
+  }
+  .badge{color:var(--text-dim); flex:none;}
+  .wordmark{display:flex; flex-direction:column; line-height:1;}
+  .wordmark .biei{font-family:'Baloo 2',sans-serif; font-weight:800; font-size:30px; color:var(--text-hi);}
+  .wordmark .sub{font-family:'Baloo 2',sans-serif; font-weight:600; font-size:14px; color:var(--text-hi); margin-top:-2px;}
+
+  .doc-meta{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom:18px; gap:10px; flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--accent);
+  }
+  .doc-meta h2{font-size:19px; color:var(--text-hi); margin-top:2px;}
+  .doc-meta .meta-right{text-align:right; font-size:12px; color:var(--text-dim);}
+
+  table.quote{
+    width:100%; border-collapse:collapse; margin-bottom:18px;
+    border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  table.quote th{
+    background:var(--doc-bg-2); color:var(--text-hi);
+    font-size:11px; letter-spacing:.04em; text-transform:uppercase;
+    padding:10px 8px; text-align:left; border-bottom:1px solid var(--line);
+  }
+  table.quote td{
+    padding:10px 8px; font-size:13px; border-bottom:1px solid var(--line);
+    color:var(--text-body);
+  }
+  table.quote tr:last-child td{border-bottom:none;}
+  table.quote td.num,table.quote th.num{text-align:right;}
+
+  .total-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:14px 4px 18px; border-bottom:1px solid var(--line); margin-bottom:16px;
+  }
+  .total-row .label{font-size:13px; color:var(--text-dim); font-weight:700;}
+  .total-row .value{font-family:'Baloo 2',sans-serif; font-size:26px; color:var(--accent);}
+  .total-row .note{font-size:11px; color:var(--text-dim); display:block; margin-top:2px; font-weight:400; font-family:'Manrope',sans-serif;}
+
+  .pay-box{
+    background:var(--doc-bg-2); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; margin-bottom:18px; display:flex; gap:18px; flex-wrap:wrap;
+  }
+  .pay-box .pay-item{flex:1; min-width:140px;}
+  .pay-box .pay-item .k{font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-dim); font-weight:700;}
+  .pay-box .pay-item .v{font-size:16px; color:var(--text-hi); font-weight:700; margin-top:2px;}
+  .pay-box .pay-item .v small{font-size:11px; color:var(--text-dim); font-weight:600;}
+
+  .studios{margin-bottom:20px; display:flex; flex-direction:column; gap:14px;}
+  .studio-card{
+    background:var(--doc-bg-2); border:1px solid var(--line); border-radius:12px;
+    padding:14px; break-inside:avoid;
+  }
+  .studio-card h3{
+    font-size:15px; color:var(--text-hi); margin-bottom:10px; font-weight:700;
+  }
+  .studio-card .imgs{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  }
+  .studio-card figure{margin:0;}
+  .studio-card img{
+    width:100%; display:block; border-radius:8px; aspect-ratio:4/3; object-fit:cover;
+    background:var(--input-bg);
+  }
+  .studio-card figcaption{
+    font-size:10px; color:var(--text-dim); margin-top:4px; text-transform:uppercase; letter-spacing:.03em;
+  }
+  @media (max-width:420px){
+    .studio-card .imgs{grid-template-columns:1fr;}
+  }
+
+  .terms{margin-bottom:16px;}
+  .terms h3{font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-hi); margin-bottom:6px;}
+  .terms ul{margin:0 0 14px; padding-left:16px;}
+  .terms li{font-size:12px; color:var(--text-dim); margin-bottom:4px; line-height:1.5;}
+  .terms li b{color:var(--text-body);}
+
+  .doc-footer{
+    border-top:1px solid var(--line); padding-top:14px;
+    display:flex; flex-wrap:wrap; gap:10px 20px; font-size:12px; color:var(--text-dim);
+  }
+  .doc-footer b{color:var(--text-hi);}
+
+  @media print{
+    body{padding:0; background:var(--doc-bg);}
+    .app{display:block;}
+    .panel,.app-title,.toast{display:none !important;}
+    .doc-wrap{display:block;}
+    .doc{box-shadow:none; border:none; max-width:none; margin:0; border-radius:0;}
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<div class="app-title"><h1>Cotizador</h1><span>Biei producciones</span></div>
+
+<!-- AVAILABILITY:START -->
+<div class="avail">
+  <h2>Disponibilidad — próximos 14 días</h2>
+  <div class="updated">Actualizado: 14/09/2026 10:00</div>
+  <div class="avail-grid">
+    <div class="avail-col"><h3>Estudio 1</h3><ul>
+      <li><b>14/09</b> 15:00–17:00 (Ailen)</li>
+      <li><b>15/09</b> 11:00–12:30 (Nick), 16:00–22:00 (Barbara), 19:00–21:30 (Mica)</li>
+      <li><b>16/09</b> 13:45–19:45 (Barbara)</li>
+      <li><b>17/09</b> 16:00–22:00 (Barbara)</li>
+      <li><b>18/09</b> 16:00–17:00 (Daian), 17:00–22:30 (Barbara)</li>
+      <li><b>19/09</b> 17:00–22:00 (Barbara)</li>
+      <li><b>21/09</b> 15:00–17:00 (Ailen)</li>
+      <li><b>22/09</b> 11:00–12:30 (Nick), 16:00–22:00 (Barbara), 19:00–21:30 (Mica)</li>
+      <li><b>23/09</b> 13:45–19:45 (Barbara)</li>
+      <li><b>24/09</b> 16:00–22:00 (Barbara)</li>
+      <li><b>25/09</b> 17:00–22:30 (Barbara)</li>
+      <li><b>26/09</b> 17:00–19:00 (Barbara)</li>
+    </ul></div>
+    <div class="avail-col"><h3>Estudio 2</h3><ul>
+      <li><b>14/09</b> 09:00–13:00 (Produ B), 19:00–20:30 (Sebastian Lama), 20:30–23:30 (Coro)</li>
+      <li><b>15/09</b> 12:00–15:00 (Vito)</li>
+      <li><b>16/09</b> 18:30–20:00 (Ailin)</li>
+      <li><b>17/09</b> 19:00–20:30 (Lhara)</li>
+      <li><b>19/09</b> 11:00–14:00 (Ailin), 16:00–21:00 (M Becerra)</li>
+      <li><b>21/09</b> 19:00–20:30 (Sebastian Lama), 20:30–23:30 (Coro)</li>
+      <li><b>22/09</b> 12:00–15:00 (Vito)</li>
+      <li><b>23/09</b> 18:30–20:00 (Ailin)</li>
+      <li><b>24/09</b> 07:00–14:00 (Joaqui), 19:00–20:30 (Lhara)</li>
+      <li><b>26/09</b> 11:00–14:00 (Ailin), 15:00–17:00 (Pao)</li>
+      <li><b>27/09</b> 18:00–21:00 (Ailu)</li>
+    </ul></div>
+    <div class="avail-col"><h3>Estudio 3</h3><ul>
+      <li><b>17/09</b> 19:30–22:00 (Martin)</li>
+      <li><b>24/09</b> 19:30–22:00 (Martin)</li>
+    </ul></div>
+    <div class="avail-col"><h3>Estudio 4</h3><ul>
+      <li><b>15/09</b> 18:00–20:00 (Cecilia), 20:00–21:30 (Rochi Badino)</li>
+      <li><b>17/09</b> 07:00–14:00 (Joaqui)</li>
+      <li><b>19/09</b> 10:00–13:00 (Rochi), 12:00–14:00 (Nicolas)</li>
+      <li><b>22/09</b> 18:00–20:00 (Cecilia), 20:00–21:30 (Rochi Badino)</li>
+      <li><b>26/09</b> 10:00–13:00 (Rochi)</li>
+      <li><b>27/09</b> 10:00–16:00 (Luli Savino)</li>
+    </ul></div>
+  </div>
+</div>
+<!-- AVAILABILITY:END -->
+
+<div class="app" id="view-nuevo">
+  <div>
+    <div class="panel">
+
+      <div class="field">
+        <label for="f-vendedor">Vendedor</label>
+        <select id="f-vendedor">
+          <option>Berna</option>
+          <option>Juani</option>
+          <option>Tadeo</option>
+          <option>Agustin</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="f-cliente">Cliente</label>
+        <input type="text" id="f-cliente" value="Nombre del cliente">
+      </div>
+
+      <div class="field">
+        <label for="f-fechaservicio">Fecha del servicio (para calcular seña)</label>
+        <input type="date" id="f-fechaservicio">
+      </div>
+
+      <div class="section-label">Renglones del presupuesto</div>
+      <div id="lines"></div>
+      <button class="add-line" id="add-line" type="button">+ Agregar renglón</button>
+
+      <div class="actions">
+        <button class="primary" id="btn-print" type="button">Descargar PDF</button>
+        <button class="secondary" id="btn-whatsapp" type="button">Enviar texto por WhatsApp</button>
+        <button class="secondary" id="btn-copy" type="button">Copiar texto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-wrap">
+    <div class="doc" id="doc">
+      <div class="doc-head">
+        <svg class="badge" width="46" height="46" viewBox="0 0 120 120">
+          <defs><path id="circlePath" d="M 60,60 m -46,0 a 46,46 0 1,1 92,0 a 46,46 0 1,1 -92,0"/></defs>
+          <text font-family="Manrope, sans-serif" font-size="9" font-weight="700" letter-spacing="2" fill="currentColor">
+            <textPath href="#circlePath" startOffset="0%">PRODUCCIONES BIEI &#183; PRODUCCIONES BIEI &#183; </textPath>
+          </text>
+        </svg>
+        <div class="wordmark">
+          <span class="biei">Biei</span>
+          <span class="sub">producciones.</span>
+        </div>
+      </div>
+
+      <div class="doc-meta">
+        <div>
+          <div class="eyebrow">Presupuesto</div>
+          <h2 id="doc-cliente">Nombre del cliente</h2>
+        </div>
+        <div class="meta-right">
+          Emitido el <span id="doc-fecha-emision"></span><br>
+          Transferencia + IVA
+        </div>
+      </div>
+
+      <table class="quote">
+        <thead>
+          <tr><th>Fecha</th><th>Estudio</th><th>Uso</th><th class="num">Días</th><th class="num">Hs/día</th><th class="num">Total</th></tr>
+        </thead>
+        <tbody id="doc-rows"></tbody>
+      </table>
+
+      <div class="total-row">
+        <div class="label">Total presupuesto<span class="note">No incluye IVA</span></div>
+        <div class="value tabular" id="doc-total">$ 0</div>
+      </div>
+
+      <div class="pay-box" id="pay-box"></div>
+
+      <div class="studios" id="doc-studios"></div>
+
+      <div class="terms">
+        <h3>Importante</h3>
+        <ul>
+          <li>En caso de que el artista requiera privacidad, podrá ingresar con su vehículo.</li>
+          <li>Se prohíbe la toma de fotografía y video a artistas y figuras públicas.</li>
+          <li>Tercerizamos mobiliario y varios. Consultar disponibilidad y costo.</li>
+          <li>Presupuesto válido únicamente de lunes a sábado. <b>Domingos y feriados tienen recargo del 30%.</b></li>
+          <li>Dentro del horario de alquiler debe estar contemplado armado y desarmado.</li>
+          <li>El estudio provee pasarela de cartón y cubre calzado para circulación de la producción.</li>
+          <li>No incluye servicio de pintura. Consultar costos.</li>
+        </ul>
+        <h3>Cancelaciones</h3>
+        <ul>
+          <li>Si se cancela la reserva a menos de 24hs del comienzo de la jornada, se deberá abonar la totalidad del alquiler, sin excepción.</li>
+          <li>Ante cancelaciones, la seña <b>no</b> será devuelta.</li>
+        </ul>
+        <h3>Medios de pago y plazos</h3>
+        <ul>
+          <li>Efectivo o transferencia + IVA.</li>
+          <li>Para reservar se abona el 50% del total si la reserva tiene más de 15 días. Si no, se abona el total.</li>
+          <li>El saldo restante se abona 5 días antes del servicio, o el mismo día si no hay excepción.</li>
+        </ul>
+      </div>
+
+      <div class="doc-footer">
+        <span><b>Tel.</b> 11-27549072</span>
+        <span><b>Mail</b> bieistudiok@gmail.com</span>
+        <span><b>IG</b> @biei.producciones</span>
+        <span><b>Dirección</b> Av. San Martín 1665, Vte. López</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const RATES = {
+    "Estudio 1": {base:42000, discount:39000},
+    "Estudio 2": {base:42000, discount:39000},
+    "Estudio 3": {base:42000, discount:39000},
+    "Estudio 4": {base:56000, discount:42000},
+  };
+  const HOURS_THRESHOLD = 8;
+
+  const STUDIO_IMAGES = {
+    "Estudio 1": {foto:"img/estudio-1-foto.jpg", plano:"img/estudio-1-plano.jpg"},
+    "Estudio 2": {foto:"img/estudio-2-foto.jpg", plano:"img/estudio-2-plano.jpg"},
+    "Estudio 3": {foto:"img/estudio-3-foto.jpg", plano:"img/estudio-3-plano.jpg"},
+    "Estudio 4": {foto:"img/estudio-4-foto.jpg", plano:"img/estudio-4-plano.jpg"},
+  };
+
+  const todayISO = () => new Date().toISOString().slice(0,10);
+  const plusDays = n => { const d = new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+
+  let lines = [
+    {studio:"Estudio 4", desde:plusDays(20), hasta:plusDays(20), uso:"Rodaje comercial", horas:8, recargo:false}
+  ];
+
+  const fmt = n => "$ " + Math.round(n).toLocaleString("es-AR");
+
+  function diasEntre(desde, hasta){
+    if (!desde || !hasta) return 1;
+    const a = new Date(desde + "T00:00:00");
+    const b = new Date(hasta + "T00:00:00");
+    const d = Math.round((b - a) / 86400000) + 1;
+    return Math.max(1, d);
+  }
+
+  function fmtFechaCorta(iso){
+    if (!iso) return "";
+    const [y,m,dd] = iso.split("-");
+    return `${dd}/${m}`;
+  }
+
+  function fechaRangoTexto(l){
+    const dias = diasEntre(l.desde, l.hasta);
+    if (dias <= 1) return fmtFechaCorta(l.desde);
+    return `${fmtFechaCorta(l.desde)} – ${fmtFechaCorta(l.hasta)} (${dias}d)`;
+  }
+
+  function lineTotal(l){
+    const dias = diasEntre(l.desde, l.hasta);
+    const rate = l.horas > HOURS_THRESHOLD ? RATES[l.studio].discount : RATES[l.studio].base;
+    let total = rate * l.horas * dias;
+    if (l.recargo) total *= 1.3;
+    return total;
+  }
+
+  function renderForm(){
+    const c = document.getElementById('lines');
+    c.innerHTML = '';
+    lines.forEach((l, i) => {
+      const div = document.createElement('div');
+      div.className = 'line-item';
+      div.innerHTML = `
+        <button class="remove-line" type="button" data-i="${i}" data-act="remove">Quitar renglón &times;</button>
+        <div class="field">
+          <label>Estudio</label>
+          <select data-i="${i}" data-act="studio">
+            ${Object.keys(RATES).map(s => `<option value="${s}" ${s===l.studio?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="row3">
+          <div class="field"><label>Desde</label><input type="date" data-i="${i}" data-act="desde" value="${l.desde}"></div>
+          <div class="field"><label>Hasta</label><input type="date" data-i="${i}" data-act="hasta" value="${l.hasta}"></div>
+          <div class="field"><label>Días</label><div class="dias-readout tabular" id="dias-${i}">${diasEntre(l.desde, l.hasta)}</div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Horas por día</label><input type="number" min="1" step="1" data-i="${i}" data-act="horas" value="${l.horas}"></div>
+          <div class="field"><label>Uso</label><input type="text" data-i="${i}" data-act="uso" value="${l.uso}"></div>
+        </div>
+        <label class="checkrow"><input type="checkbox" data-i="${i}" data-act="recargo" ${l.recargo?'checked':''}> Domingo / feriado (+30%)</label>
+      `;
+      c.appendChild(div);
+    });
+  }
+
+  function daysUntil(dateStr){
+    if (!dateStr) return null;
+    const target = new Date(dateStr + "T00:00:00");
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    return Math.round((target - today) / 86400000);
+  }
+
+  function renderDoc(){
+    document.getElementById('doc-cliente').textContent = document.getElementById('f-cliente').value || "Nombre del cliente";
+    document.getElementById('doc-fecha-emision').textContent = new Date().toLocaleDateString('es-AR', {day:'numeric', month:'long', year:'numeric'});
+
+    const rows = document.getElementById('doc-rows');
+    rows.innerHTML = '';
+    let total = 0;
+    lines.forEach(l => {
+      const t = lineTotal(l);
+      total += t;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${fechaRangoTexto(l)}</td><td>${l.studio}</td><td>${l.uso}${l.recargo?' <small style="color:var(--accent)">(+30%)</small>':''}</td><td class="num tabular">${diasEntre(l.desde,l.hasta)}</td><td class="num tabular">${l.horas}</td><td class="num tabular">${fmt(t)}</td>`;
+      rows.appendChild(tr);
+    });
+    document.getElementById('doc-total').textContent = fmt(total);
+
+    const studiosUsed = [...new Set(lines.map(l => l.studio))];
+    const studiosBox = document.getElementById('doc-studios');
+    studiosBox.innerHTML = studiosUsed.map(s => `
+      <div class="studio-card">
+        <h3>${s}</h3>
+        <div class="imgs">
+          <figure><img src="${STUDIO_IMAGES[s].foto}" alt="Foto ${s}"><figcaption>Foto del estudio</figcaption></figure>
+          <figure><img src="${STUDIO_IMAGES[s].plano}" alt="Plano ${s}"><figcaption>Plano</figcaption></figure>
+        </div>
+      </div>
+    `).join('');
+
+    const fechaServicio = document.getElementById('f-fechaservicio').value;
+    const dias = daysUntil(fechaServicio);
+    const payBox = document.getElementById('pay-box');
+    if (dias === null){
+      payBox.innerHTML = `<div class="pay-item"><div class="k">Seña</div><div class="v">50% <small>o 100% si reserva &lt; 15 días</small></div></div>
+        <div class="pay-item"><div class="k">Saldo</div><div class="v">Hasta 5 días antes del servicio</div></div>`;
+    } else {
+      const full = dias <= 15;
+      const senia = full ? total : total * 0.5;
+      const saldo = full ? 0 : total * 0.5;
+      payBox.innerHTML = `
+        <div class="pay-item"><div class="k">${full ? 'A abonar (reserva)' : 'Seña (50%)'}</div><div class="v tabular">${fmt(senia)}<br><small>${full ? 'reserva a menos de 15 días' : 'para reservar'}</small></div></div>
+        <div class="pay-item"><div class="k">Saldo</div><div class="v tabular">${fmt(saldo)}<br><small>${full ? '—' : 'hasta 5 días antes del servicio'}</small></div></div>`;
+    }
+  }
+
+  function renderAll(){ renderForm(); renderDoc(); attachLineEvents(); }
+
+  function attachLineEvents(){
+    document.querySelectorAll('#lines [data-act]').forEach(el => {
+      el.addEventListener('input', onLineChange);
+      el.addEventListener('change', onLineChange);
+    });
+    document.querySelectorAll('[data-act="remove"]').forEach(el => {
+      el.addEventListener('click', () => {
+        lines.splice(Number(el.dataset.i), 1);
+        renderAll();
+      });
+    });
+  }
+
+  function onLineChange(e){
+    const i = Number(e.target.dataset.i);
+    const act = e.target.dataset.act;
+    if (act === 'remove') return;
+    if (act === 'recargo') lines[i][act] = e.target.checked;
+    else if (act === 'horas') lines[i][act] = Math.max(1, Number(e.target.value) || 1);
+    else lines[i][act] = e.target.value;
+    if (act === 'desde' || act === 'hasta'){
+      if (lines[i].hasta < lines[i].desde) lines[i].hasta = lines[i].desde;
+      const readout = document.getElementById('dias-' + i);
+      if (readout) readout.textContent = diasEntre(lines[i].desde, lines[i].hasta);
+    }
+    renderDoc();
+  }
+
+  document.getElementById('add-line').addEventListener('click', () => {
+    lines.push({studio:"Estudio 1", desde:todayISO(), hasta:todayISO(), uso:"", horas:8, recargo:false});
+    renderAll();
+  });
+
+  document.getElementById('f-cliente').addEventListener('input', renderDoc);
+  document.getElementById('f-fechaservicio').addEventListener('input', renderDoc);
+
+  document.getElementById('btn-print').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-print');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Generando PDF…';
+    try{
+      const el = document.getElementById('doc');
+      const canvas = await html2canvas(el, {backgroundColor: '#1a1920', scale: 2, useCORS: true});
+      const { jsPDF } = window.jspdf;
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const pdfWidth = 210;
+      const pdfHeight = canvas.height * pdfWidth / canvas.width;
+      const pdf = new jsPDF({unit:'mm', format:[pdfWidth, pdfHeight]});
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      const cliente = document.getElementById('f-cliente').value || 'presupuesto';
+      pdf.save(`Presupuesto Biei - ${cliente}.pdf`);
+      showToast('PDF descargado ✓');
+    }catch(e){
+      showToast('No se pudo generar el PDF');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
+
+  function buildQuoteText(){
+    const cliente = document.getElementById('f-cliente').value || "Nombre del cliente";
+    let total = 0;
+    const rowsText = lines.map(l => {
+      const t = lineTotal(l); total += t;
+      return `- ${fechaRangoTexto(l)} | ${l.studio} | ${l.uso} | ${l.horas}hs/día${l.recargo?' (+30% feriado/domingo)':''} | ${fmt(t)}`;
+    }).join('\n');
+    const dias = daysUntil(document.getElementById('f-fechaservicio').value);
+    let pagoText = 'Seña 50% (o 100% si la reserva es a menos de 15 días). Saldo hasta 5 días antes del servicio.';
+    if (dias !== null){
+      pagoText = dias <= 15
+        ? `Reserva a menos de 15 días del servicio: se abona el total (${fmt(total)}) para confirmar.`
+        : `Seña 50% (${fmt(total*0.5)}) para reservar. Saldo 50% (${fmt(total*0.5)}) hasta 5 días antes del servicio.`;
+    }
+    const vendedor = document.getElementById('f-vendedor').value;
+    return `PRESUPUESTO BIEI PRODUCCIONES\nVendedor: ${vendedor}\nCliente: ${cliente}\n\n${rowsText}\n\nTOTAL: ${fmt(total)} (no incluye IVA)\n\n${pagoText}\nEfectivo o transferencia + IVA. Seña no reembolsable ante cancelación.\n\nBiei Producciones | 11-27549072 | bieistudiok@gmail.com | @biei.producciones\nAv. San Martín 1665, Vte. López`;
+  }
+
+  document.getElementById('btn-whatsapp').addEventListener('click', () => {
+    const text = buildQuoteText();
+    const url = 'https://wa.me/?text=' + encodeURIComponent(text);
+    window.open(url, '_blank', 'noopener');
+  });
+
+  document.getElementById('btn-copy').addEventListener('click', async () => {
+    const text = buildQuoteText();
+    try{
+      await navigator.clipboard.writeText(text);
+      showToast('Texto copiado ✓');
+    }catch(e){
+      showToast('No se pudo copiar automáticamente');
+    }
+  });
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // default fecha servicio: 20 days from today
+  const d = new Date(); d.setDate(d.getDate() + 20);
+  document.getElementById('f-fechaservicio').value = d.toISOString().slice(0,10);
+
+  renderAll();
+</script>
+</body>
+</html>
