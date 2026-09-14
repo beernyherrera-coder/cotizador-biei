@@ -42,9 +42,10 @@ function cleanName(summary) {
   let s = String(summary).trim();
   s = s.replace(/^\[SpacePal\]\s*-\s*/i, '');
   s = s.replace(/^E[1-4]\s*[-.]?\s*/i, '');
+  s = s.replace(/\s*E[1-4]\s*$/i, '');
   s = s.trim();
   if (!s) return null;
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return s.toLowerCase().replace(/\b\p{L}/gu, c => c.toUpperCase());
 }
 
 async function collectEventsForCalendar(url, rangeStart, rangeEnd) {
@@ -105,13 +106,17 @@ function buildColumnHtml(events) {
   const byDate = {};
   for (const e of events) {
     const key = fmtDateKey(e.start);
-    if (!byDate[key]) byDate[key] = { dateShort: fmtDateShort(e.start), slots: [] };
-    byDate[key].slots.push(`${fmtTime(e.start)}–${fmtTime(e.end)}${cleanName(e.summary) ? ' (' + cleanName(e.summary) + ')' : ''}`);
+    if (!byDate[key]) byDate[key] = { dateShort: fmtDateShort(e.start), items: [] };
+    byDate[key].items.push({
+      start: e.start,
+      text: `${fmtTime(e.start)}–${fmtTime(e.end)}${cleanName(e.summary) ? ' (' + cleanName(e.summary) + ')' : ''}`,
+    });
   }
   const sortedKeys = Object.keys(byDate).sort();
   const items = sortedKeys.map(k => {
     const d = byDate[k];
-    return `      <li><b>${d.dateShort}</b> ${d.slots.join(', ')}</li>`;
+    d.items.sort((a, b) => a.start - b.start);
+    return `      <li><b>${d.dateShort}</b> ${d.items.map(i => i.text).join(', ')}</li>`;
   });
   return `<ul>\n${items.join('\n')}\n    </ul>`;
 }
