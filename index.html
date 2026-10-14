@@ -147,6 +147,7 @@
     font-size:13px; color:var(--text-body);
   }
   .line-item .checkrow input{width:auto;}
+  .salvedad{font-size:11px; color:var(--text-dim); font-style:italic; margin:-8px 0 16px;}
   .rate-hint{font-size:11px; color:var(--text-dim);}
   .rate-reset{background:none; border:none; padding:0; color:var(--accent); font:inherit; font-weight:700; cursor:pointer; text-decoration:underline;}
   .remove-line{
@@ -417,6 +418,7 @@
         </thead>
         <tbody id="doc-rows"></tbody>
       </table>
+      <p class="salvedad" id="doc-salvedad" hidden>* Estudio a definir según disponibilidad al momento de confirmar la reserva. El valor puede ajustarse según el estudio asignado.</p>
 
       <div class="total-row">
         <div class="label">Total presupuesto<span class="note">No incluye IVA</span></div>
@@ -483,7 +485,7 @@
   const plusDays = n => { const d = new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
 
   let lines = [
-    {studio:"Estudio 4", desde:plusDays(20), hasta:plusDays(20), uso:"Rodaje comercial", horas:8, recargo:false, rate:null}
+    {studio:"Estudio 4", desde:plusDays(20), hasta:plusDays(20), uso:"Rodaje comercial", horas:8, recargo:false, rate:null, adef:false}
   ];
 
   const fmt = n => "$ " + Math.round(n).toLocaleString("es-AR");
@@ -552,6 +554,7 @@
           <div class="rate-hint" id="rate-hint-${i}">${rateHint(l, i)}</div>
         </div>
         <label class="checkrow"><input type="checkbox" data-i="${i}" data-act="recargo" ${l.recargo?'checked':''}> Domingo / feriado (+30%)</label>
+        <label class="checkrow"><input type="checkbox" data-i="${i}" data-act="adef" ${l.adef?'checked':''}> Estudio a definir según disponibilidad</label>
       `;
       c.appendChild(div);
     });
@@ -561,6 +564,10 @@
     const lista = fmt(autoRate(l));
     if (l.rate === null || l.rate === undefined) return `Precio de lista: ${lista}`;
     return `Precio editado · lista ${lista} · <button type="button" class="rate-reset" data-i="${i}">Volver al de lista</button>`;
+  }
+
+  function studioLabel(l){
+    return l.adef ? 'A definir*' : l.studio;
   }
 
   function daysUntil(dateStr){
@@ -582,12 +589,13 @@
       const t = lineTotal(l);
       total += t;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${fechaRangoTexto(l)}</td><td>${l.studio}</td><td>${l.uso}${l.recargo?' <small style="color:var(--accent)">(+30%)</small>':''}</td><td class="num tabular">${diasEntre(l.desde,l.hasta)}</td><td class="num tabular">${l.horas}</td><td class="num tabular">${fmt(rateOf(l))}</td><td class="num tabular">${fmt(t)}</td>`;
+      tr.innerHTML = `<td>${fechaRangoTexto(l)}</td><td>${studioLabel(l)}</td><td>${l.uso}${l.recargo?' <small style="color:var(--accent)">(+30%)</small>':''}</td><td class="num tabular">${diasEntre(l.desde,l.hasta)}</td><td class="num tabular">${l.horas}</td><td class="num tabular">${fmt(rateOf(l))}</td><td class="num tabular">${fmt(t)}</td>`;
       rows.appendChild(tr);
     });
     document.getElementById('doc-total').textContent = fmt(total);
+    document.getElementById('doc-salvedad').hidden = !lines.some(l => l.adef);
 
-    const studiosUsed = [...new Set(lines.map(l => l.studio))];
+    const studiosUsed = [...new Set(lines.filter(l => !l.adef).map(l => l.studio))];
     const studiosBox = document.getElementById('doc-studios');
     studiosBox.innerHTML = studiosUsed.map(s => `
       <div class="studio-card">
@@ -640,7 +648,7 @@
     const i = Number(e.target.dataset.i);
     const act = e.target.dataset.act;
     if (act === 'remove') return;
-    if (act === 'recargo') lines[i][act] = e.target.checked;
+    if (act === 'recargo' || act === 'adef') lines[i][act] = e.target.checked;
     else if (act === 'horas') lines[i][act] = Math.max(1, Number(e.target.value) || 1);
     else if (act === 'rate') lines[i].rate = e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0);
     else lines[i][act] = e.target.value;
@@ -659,7 +667,7 @@
   }
 
   document.getElementById('add-line').addEventListener('click', () => {
-    lines.push({studio:"Estudio 1", desde:todayISO(), hasta:todayISO(), uso:"", horas:8, recargo:false, rate:null});
+    lines.push({studio:"Estudio 1", desde:todayISO(), hasta:todayISO(), uso:"", horas:8, recargo:false, rate:null, adef:false});
     renderAll();
   });
 
@@ -696,7 +704,7 @@
     let total = 0;
     const rowsText = lines.map(l => {
       const t = lineTotal(l); total += t;
-      return `- ${fechaRangoTexto(l)} | ${l.studio} | ${l.uso} | ${l.horas}hs/día x ${fmt(rateOf(l))}/h${l.recargo?' (+30% feriado/domingo)':''} | ${fmt(t)}`;
+      return `- ${fechaRangoTexto(l)} | ${studioLabel(l)} | ${l.uso} | ${l.horas}hs/día x ${fmt(rateOf(l))}/h${l.recargo?' (+30% feriado/domingo)':''} | ${fmt(t)}`;
     }).join('\n');
     const dias = daysUntil(document.getElementById('f-fechaservicio').value);
     let pagoText = 'Seña 50% (o 100% si la reserva es a menos de 15 días). Saldo hasta 5 días antes del servicio.';
@@ -706,7 +714,7 @@
         : `Seña 50% (${fmt(total*0.5)}) para reservar. Saldo 50% (${fmt(total*0.5)}) hasta 5 días antes del servicio.`;
     }
     const vendedor = document.getElementById('f-vendedor').value;
-    return `PRESUPUESTO BIEI PRODUCCIONES\nVendedor: ${vendedor}\nCliente: ${cliente}\n\n${rowsText}\n\nTOTAL: ${fmt(total)} (no incluye IVA)\n\n${pagoText}\nEfectivo o transferencia + IVA. Seña no reembolsable ante cancelación.\n\nBiei Producciones | 11-27549072 | bieistudiok@gmail.com | @biei.producciones\nAv. San Martín 1665, Vte. López`;
+    return `PRESUPUESTO BIEI PRODUCCIONES\nVendedor: ${vendedor}\nCliente: ${cliente}\n\n${rowsText}\n\nTOTAL: ${fmt(total)} (no incluye IVA)${lines.some(l => l.adef) ? '\n* Estudio a definir según disponibilidad al momento de confirmar la reserva. El valor puede ajustarse según el estudio asignado.' : ''}\n\n${pagoText}\nEfectivo o transferencia + IVA. Seña no reembolsable ante cancelación.\n\nBiei Producciones | 11-27549072 | bieistudiok@gmail.com | @biei.producciones\nAv. San Martín 1665, Vte. López`;
   }
 
   document.getElementById('btn-whatsapp').addEventListener('click', () => {
