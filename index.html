@@ -412,7 +412,7 @@
 
       <table class="quote">
         <thead>
-          <tr><th>Fecha</th><th>Estudio</th><th>Uso</th><th class="num">Días</th><th class="num">Hs/día</th><th class="num">$/h</th><th class="num">Total</th></tr>
+          <tr><th>Fecha</th><th>Espacio</th><th>Uso</th><th class="num">Días</th><th class="num">Hs/día</th><th class="num">$/h</th><th class="num">Total</th></tr>
         </thead>
         <tbody id="doc-rows"></tbody>
       </table>
@@ -469,8 +469,11 @@
     "Estudio 2": {base:42000, discount:39000},
     "Estudio 3": {base:42000, discount:39000},
     "Estudio 4": {base:56000, discount:42000},
+    "Espacios comunes": {base:null, discount:null},
+    "Oficina": {base:null, discount:null},
   };
   const HOURS_THRESHOLD = 8;
+  const hasList = l => RATES[l.studio] && RATES[l.studio].base != null;
 
   const STUDIO_IMAGES = {
     "Estudio 1": {foto:"img/estudio-1-foto.jpg", plano:"img/estudio-1-plano.jpg"},
@@ -509,6 +512,7 @@
   }
 
   function autoRate(l){
+    if (!hasList(l)) return 0;
     return l.horas > HOURS_THRESHOLD ? RATES[l.studio].discount : RATES[l.studio].base;
   }
   function rateOf(l){
@@ -532,7 +536,7 @@
       div.innerHTML = `
         <button class="remove-line" type="button" data-i="${i}" data-act="remove">Quitar renglón &times;</button>
         <div class="field">
-          <label>Estudio</label>
+          <label>Espacio</label>
           <select data-i="${i}" data-act="studio">
             ${Object.keys(RATES).map(s => `<option value="${s}" ${s===l.studio?'selected':''}>${s}</option>`).join('')}
           </select>
@@ -548,7 +552,7 @@
         </div>
         <div class="field">
           <label>Precio por hora ($)</label>
-          <input type="number" min="0" step="500" data-i="${i}" data-act="rate" id="rate-${i}" value="${rateOf(l)}">
+          <input type="number" min="0" step="500" data-i="${i}" data-act="rate" id="rate-${i}" value="${(hasList(l) || (l.rate !== null && l.rate !== undefined)) ? rateOf(l) : ''}" placeholder="Cargar precio">
           <div class="rate-hint" id="rate-hint-${i}">${rateHint(l, i)}</div>
         </div>
         <label class="checkrow"><input type="checkbox" data-i="${i}" data-act="recargo" ${l.recargo?'checked':''}> Domingo / feriado (+30%)</label>
@@ -559,6 +563,7 @@
   }
 
   function rateHint(l, i){
+    if (!hasList(l)) return (l.rate === null || l.rate === undefined) ? 'Sin precio de lista: cargá el precio por hora' : 'Precio cargado a mano';
     const lista = fmt(autoRate(l));
     if (l.rate === null || l.rate === undefined) return `Precio de lista: ${lista}`;
     return `Precio editado · lista ${lista} · <button type="button" class="rate-reset" data-i="${i}">Volver al de lista</button>`;
@@ -593,7 +598,7 @@
     document.getElementById('doc-total').textContent = fmt(total);
     document.getElementById('doc-salvedad').hidden = !lines.some(l => l.adef);
 
-    const studiosUsed = [...new Set(lines.filter(l => !l.adef).map(l => l.studio))];
+    const studiosUsed = [...new Set(lines.filter(l => !l.adef && STUDIO_IMAGES[l.studio]).map(l => l.studio))];
     const studiosBox = document.getElementById('doc-studios');
     studiosBox.innerHTML = studiosUsed.map(s => `
       <div class="studio-card">
@@ -652,7 +657,7 @@
     else lines[i][act] = e.target.value;
     if (act === 'studio' || act === 'horas' || act === 'rate'){
       const rIn = document.getElementById('rate-' + i);
-      if (rIn && act !== 'rate' && (lines[i].rate === null || lines[i].rate === undefined)) rIn.value = autoRate(lines[i]);
+      if (rIn && act !== 'rate' && (lines[i].rate === null || lines[i].rate === undefined)) rIn.value = hasList(lines[i]) ? autoRate(lines[i]) : '';
       const hint = document.getElementById('rate-hint-' + i);
       if (hint) hint.innerHTML = rateHint(lines[i], i);
     }
